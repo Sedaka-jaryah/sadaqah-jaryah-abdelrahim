@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#6f4a2f">
 <title>صدقة جارية | عبدالرحيم صبري عبدالرحيم حسنين</title>
 <style>
@@ -187,7 +187,17 @@ audio{width:100%;margin-top:10px}
  border:5px solid #b58a4d;display:grid;place-items:center;
  box-shadow:0 14px 30px #5a3a2522;transition:.12s
 }
-.tas-ring:active{transform:scale(.96)}
+
+.tas-ring{
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+.tas-ring:active{transform:scale(.97)}
+.tas-ring:focus{outline:none}
+.tas-ring:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
 .tas-center{
  width:91px;height:91px;border-radius:50%;background:var(--ivory);
  border:1px solid var(--line);display:grid;place-items:center;
@@ -366,9 +376,7 @@ async function counterUp(name){
    const j=await r.json();
    return Number(j?.data ?? j?.count ?? 0);
  }catch(e){
-   const k=localKeys[name];
-   const n=(Number(localStorage.getItem(k)||0)+1);
-   localStorage.setItem(k,n); return n;
+   return null;
  }
 }
 async function counterGet(name){
@@ -377,9 +385,9 @@ async function counterGet(name){
    if(!r.ok) throw new Error('counter');
    const j=await r.json();
    return Number(j?.data ?? j?.count ?? 0);
- }catch(e){return Number(localStorage.getItem(localKeys[name])||0);}
+ }catch(e){return null;}
 }
-function setStat(id,n){document.getElementById(id).textContent=fmt(n);}
+function setStat(id,n){document.getElementById(id).textContent = n == null ? '—' : fmt(n);}
 
 (async function initCounters(){
  const visitSessionKey = `countedVisit-${todayKey()}`;
@@ -500,11 +508,16 @@ tasbeehPhrases.forEach((phrase,i)=>{
  const ring=card.querySelector('.tas-ring');
  const reset=card.querySelector('.reset');
  function load(){num.textContent=fmt(localStorage.getItem(key)||0)}
- ring.addEventListener('click',async()=>{
+ let lastTap=0;
+ ring.addEventListener('pointerup',async(e)=>{
+   e.preventDefault();
+   const now=Date.now();
+   if(now-lastTap<120) return;
+   lastTap=now;
    const n=Number(localStorage.getItem(key)||0)+1;
    localStorage.setItem(key,String(n));
    num.textContent=fmt(n);
-   await registerDhikr();
+   registerDhikr().catch(()=>{});
  });
  reset.addEventListener('click',()=>{localStorage.setItem(key,'0');load()});
  load();
