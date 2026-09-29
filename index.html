@@ -356,38 +356,48 @@ audio{width:100%;margin-top:10px}
 
 <script>
 /* ---------- Global counters ----------
-   CounterAPI: الزوار يوميًّا، والذكر تراكمي عالميًا.
-   If it is unavailable, the site falls back to local storage.
+   CountAPI successor: shared daily visitors + global dhikr total.
+   No localStorage fallback is used for these global counters, so Safari/Chrome
+   and different devices read the same central values.
 */
-const COUNTER_BASE = 'https://api.counterapi.dev/v1/abdelrahim-sadaqa';
-const localKeys = {visits:'localVisits', dhikr:'localDhikr'};
+const COUNTER_BASE = 'https://countapi.mileshilliard.com/api/v1';
+const COUNTER_NAMESPACE = 'sedaka-jaryah-abdelrahim';
 
 function fmt(n){ return Number(n||0).toLocaleString('ar-EG'); }
 function todayKey(){
  const d=new Date();
  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function dailyVisitCounterName(){ return `visits-${todayKey()}`; }
+function dailyVisitCounterName(){ return `${COUNTER_NAMESPACE}-visits-${todayKey()}`; }
+function dhikrCounterName(){ return `${COUNTER_NAMESPACE}-dhikr-total`; }
 
 async function counterUp(name){
  try{
-   const r=await fetch(`${COUNTER_BASE}/${name}/up`,{cache:'no-store'});
-   if(!r.ok) throw new Error('counter');
+   const r=await fetch(`${COUNTER_BASE}/hit/${encodeURIComponent(name)}`,{cache:'no-store'});
+   if(!r.ok) throw new Error(`counter ${r.status}`);
    const j=await r.json();
-   return Number(j?.data ?? j?.count ?? 0);
+   const n=Number(j?.value ?? j?.data ?? j?.count);
+   if(!Number.isFinite(n)) throw new Error('invalid counter response');
+   return n;
  }catch(e){
+   console.error('Counter increment failed:',e);
    return null;
  }
 }
 async function counterGet(name){
  try{
-   const r=await fetch(`${COUNTER_BASE}/${name}`,{cache:'no-store'});
-   if(!r.ok) throw new Error('counter');
+   const r=await fetch(`${COUNTER_BASE}/get/${encodeURIComponent(name)}`,{cache:'no-store'});
+   if(!r.ok) throw new Error(`counter ${r.status}`);
    const j=await r.json();
-   return Number(j?.data ?? j?.count ?? 0);
- }catch(e){return null;}
+   const n=Number(j?.value ?? j?.data ?? j?.count);
+   if(!Number.isFinite(n)) throw new Error('invalid counter response');
+   return n;
+ }catch(e){
+   console.error('Counter read failed:',e);
+   return null;
+ }
 }
-function setStat(id,n){document.getElementById(id).textContent = n == null ? '—' : fmt(n);}
+function setStat(id,n){document.getElementById(id).textContent=n===null?'—':fmt(n);}
 
 (async function initCounters(){
  const visitSessionKey = `countedVisit-${todayKey()}`;
@@ -395,11 +405,12 @@ function setStat(id,n){document.getElementById(id).textContent = n == null ? '�
    sessionStorage.setItem(visitSessionKey,'1');
    const n=await counterUp(dailyVisitCounterName()); setStat('visits',n);
  }else setStat('visits',await counterGet(dailyVisitCounterName()));
- setStat('dhikrTotal',await counterGet('dhikr'));
+ setStat('dhikrTotal',await counterGet(dhikrCounterName()));
 })();
 
 async function registerDhikr(){
- const n=await counterUp('dhikr'); setStat('dhikrTotal',n);
+ const n=await counterUp(dhikrCounterName());
+ if(n!==null) setStat('dhikrTotal',n);
 }
 
 /* ---------- Adhkar ---------- */
